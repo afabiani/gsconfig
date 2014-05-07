@@ -255,6 +255,10 @@ def dimension_info(builder, metadata):
                 builder.start("presentation", dict())
                 builder.data(metadata.presentation)
                 builder.end("presentation")
+        if metadata.attribute is not None:
+            builder.start("attribute", dict())
+            builder.data(metadata.attribute)
+            builder.end("attribute")
         if metadata.resolution is not None:
             builder.start("resolution", dict())
             builder.data(metadata.resolution)
@@ -270,9 +274,10 @@ def dimension_info(builder, metadata):
         builder.end("dimensionInfo")
 
 class DimensionInfo(object):
-    def __init__(self, name, enabled, presentation, resolution, units, unitSymbol):
+    def __init__(self, name, enabled, attribute, presentation, resolution, units, unitSymbol):
         self.name = name
         self.enabled = enabled
+        self.attribute = attribute
         self.presentation = presentation
         self.resolution = resolution
         self.units = units
