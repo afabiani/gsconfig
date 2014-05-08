@@ -144,6 +144,8 @@ def write_metadata(name):
             builder.start("entry", dict(key=k))
             if k in ['time', 'elevation'] or k.startswith('custom_dimension'):
                 dimension_info(builder, v)
+            elif k == 'DynamicDefaultValues':
+                din_default_values_info(builder, v)
             else:
                 builder.data(v)
             builder.end("entry")
@@ -271,10 +273,17 @@ def dimension_info(builder, metadata):
             builder.start("unitSymbol", dict())
             builder.data(metadata.unitSymbol)
             builder.end("unitSymbol")
+        if metadata.strategy is not None:
+            builder.start("defaultValue", dict())
+            builder.start("strategy", dict())
+            builder.data(metadata.strategy)
+            builder.end("strategy")
+            builder.end("defaultValue")
+            
         builder.end("dimensionInfo")
 
 class DimensionInfo(object):
-    def __init__(self, name, enabled, attribute, presentation, resolution, units, unitSymbol):
+    def __init__(self, name, enabled, attribute, presentation, resolution, units, unitSymbol, strategy):
         self.name = name
         self.enabled = enabled
         self.attribute = attribute
@@ -282,11 +291,14 @@ class DimensionInfo(object):
         self.resolution = resolution
         self.units = units
         self.unitSymbol = unitSymbol
+        self.strategy = strategy
 
 def md_dimension_info(name, node):
     """Extract metadata Dimension Info from an xml node"""
     enabled = node.find("enabled")
     enabled = enabled.text if enabled is not None else None
+    attribute = node.find("attribute")
+    attribute = attribute.text if attribute is not None else None
     presentation = node.find("presentation")
     presentation = presentation.text if presentation is not None else None
     resolution = node.find("resolution")
@@ -295,7 +307,62 @@ def md_dimension_info(name, node):
     units = units.text if units is not None else None
     unitSymbol = node.find("unitSymbol")
     unitSymbol = unitSymbol.text if unitSymbol is not None else None
-    return DimensionInfo(name, enabled, presentation, resolution, units, unitSymbol)
+    defaultValue = node.find("defaultValue")
+    strategy = defaultValue.find("strategy") if defaultValue is not None else None
+    strategy = strategy.text if strategy is not None else None
+    return DimensionInfo(name, enabled, attribute, presentation, resolution, units, unitSymbol, strategy)
+
+def din_default_values_info(builder, metadata):
+    if isinstance(metadata, DynamicDefaultValues):
+        builder.start("DynamicDefaultValues", dict())
+        
+        if metadata.configurations is not None:
+            builder.start("configurations", dict())
+            for c in metadata.configurations:
+                builder.start("configuration", dict())
+                if c.dimension is not None:
+                    builder.start("dimension", dict())
+                    builder.data(c.dimension)
+                    builder.end("dimension")
+                if c.policy is not None:
+                    builder.start("policy", dict())
+                    builder.data(c.policy)
+                    builder.end("policy")
+                if c.defaultValueExpression is not None:
+                    builder.start("defaultValueExpression", dict())
+                    builder.data(c.defaultValueExpression)
+                    builder.end("defaultValueExpression")
+                builder.end("configuration")
+            builder.end("configurations")
+        builder.end("DynamicDefaultValues")
+        
+class DynamicDefaultValuesConfiguration(object):
+    def __init__(self, dimension, policy, defaultValueExpression):
+        self.dimension = dimension
+        self.policy = policy
+        self.defaultValueExpression = defaultValueExpression
+
+class DynamicDefaultValues(object):
+    def __init__(self, name, configurations):
+        self.name = name
+        self.configurations = configurations
+
+def md_din_default_values_info(name, node):
+    """Extract metadata Dynamic Default Values from an xml node"""
+    configurations = node.find("configurations")
+    if configurations is not None:
+        configurations = []
+        for n in node.findall("configuration"):
+            dimension = n.find("dimension")
+            dimension = dimension.text if dimension is not None else None
+            policy = n.find("policy")
+            policy = policy.text if policy is not None else None
+            defaultValueExpression = n.find("defaultValueExpression")
+            defaultValueExpression = defaultValueExpression.text if defaultValueExpression is not None else None
+            
+            configurations.append(DynamicDefaultValuesConfiguration(dimension, policy, defaultValueExpression))
+            
+    return DynamicDefaultValues(name, configurations)
 
 def md_entry(node):
     """Extract metadata entries from an xml node"""
@@ -308,6 +375,8 @@ def md_entry(node):
 
     if key in ['time', 'elevation'] or key.startswith('custom_dimension'):
         value = md_dimension_info(key, node.find("dimensionInfo"))
+    elif key == 'DynamicDefaultValues':
+        value = md_din_default_values_info(key, node.find("DynamicDefaultValues"))
     else:
         value = node.text
         
