@@ -79,8 +79,10 @@ class Style(ResourceInfo):
                 title_node = user_style.find("{http://www.opengis.net/sld}Title")
             except:
                 title_node = None
-        
-        return title_node.text if title_node is not None else None
+
+            return title_node.text if title_node is not None else None
+
+        return None
 
     @property
     def sld_name(self):
